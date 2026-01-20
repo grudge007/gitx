@@ -34,6 +34,7 @@ func main() {
 
 	if action == "init" && len(os.Args) > 2 {
 		fmt.Printf("%v takes zero flags", action)
+		return
 	}
 
 	switch action {
