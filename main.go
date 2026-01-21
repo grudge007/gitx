@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gitx/initx"
+	push "gitx/pushx"
 	"os"
 )
 
@@ -25,6 +26,7 @@ func main() {
 	case "init":
 		initx.InitializeConfig()
 	case "push":
+		push.PushFilesToRemote()
 
 	default:
 		fmt.Print("Coming Soon")

@@ -16,25 +16,28 @@ type Config struct {
 }
 
 type Inventory struct {
-	UserName       string
-	NodeIpOrDomain string
+	UserName       []string
+	PassWord       []string
+	NodeIpOrDomain []string
 	ProjectPath    string
 }
 
+var ConfigFile = ".gitx/gitx.conf"
+
 func InitializeConfig() {
 	var ConfigDir = ".gitx"
-	var ConfigFIle = ".gitx/gitx.conf"
 	var numberOfNodes string
 	var projectPath string
-	var domainOrip string
+	var domainOrip []string
 	var userConfig Config
 	var isOverride string
-	var userName string
-	var inventory = Inventory{}
+	var userName []string
+	var password []string
+	// var inventory = Inventory{}
 
 	_, err := os.Stat(ConfigDir)
 	if err == nil {
-		_, err = os.Stat(ConfigFIle)
+		_, err = os.Stat(ConfigFile)
 		if err == nil {
 			fmt.Println("existing configuration found")
 			fmt.Print("Enter 'Y' to override: ")
@@ -60,17 +63,22 @@ func InitializeConfig() {
 	}
 
 	for i := 1; i <= numberOfNode; i++ {
+		var ipOrDom string
+		var pass string
+		var user string
 		fmt.Printf("domain name or ip address of node %d: ", i)
-		fmt.Scan(&domainOrip)
+		fmt.Scan(&ipOrDom)
 		fmt.Printf("Username of %d: ", i)
-		fmt.Scan(&userName)
-		if len(domainOrip) > 50 {
+		fmt.Scan(&user)
+		fmt.Printf("Password of %d: ", i)
+		fmt.Scan(&pass)
+		if len(ipOrDom) > 50 {
 			fmt.Printf("%v characters?? looks abnormal!!\n", len(domainOrip))
 			return
 		}
-
-		inventory.NodeIpOrDomain = domainOrip
-		inventory.UserName = userName
+		domainOrip = append(domainOrip, fmt.Sprintf("%v:22", ipOrDom))
+		userName = append(userName, user)
+		password = append(password, pass)
 
 	}
 
@@ -78,7 +86,6 @@ func InitializeConfig() {
 	fmt.Scan(&projectPath)
 	projectPath = strings.ReplaceAll(projectPath, "~", "")
 	projectPath = setProjectPath(projectPath)
-	inventory.ProjectPath = projectPath
 
 	_, err = os.Stat(projectPath)
 	if err != nil {
@@ -86,9 +93,10 @@ func InitializeConfig() {
 		return
 	}
 	inventoryConfig := Inventory{
-		UserName:       inventory.UserName,
-		NodeIpOrDomain: inventory.NodeIpOrDomain,
-		ProjectPath:    inventory.ProjectPath,
+		UserName:       userName,
+		PassWord:       password,
+		NodeIpOrDomain: domainOrip,
+		ProjectPath:    projectPath,
 	}
 
 	userConfig = Config{
@@ -104,10 +112,10 @@ func InitializeConfig() {
 	}
 
 	fmt.Println("userConfigJson: ", string(userConfigJson))
-	err = os.WriteFile(ConfigFIle, userConfigJson, 0660)
+	err = os.WriteFile(ConfigFile, userConfigJson, 0660)
 
 	if err != nil {
-		fmt.Printf("Failed to write input data to %v\n", ConfigFIle)
+		fmt.Printf("Failed to write input data to %v\n", ConfigFile)
 		return
 	}
 }
