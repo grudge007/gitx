@@ -5,72 +5,105 @@ import (
 	"fmt"
 	"gitx/initx"
 	"io"
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
 func PushFilesToRemote() {
+
+	// unmarshall data
 	var userConfig initx.Config
-
-	confData, err := os.ReadFile(initx.ConfigFile)
+	var ignoreFile []string
+	configFile, _ := os.ReadFile(".gitx/gitx.conf")
+	err := json.Unmarshal(configFile, &userConfig)
 	if err != nil {
-		fmt.Print("Error Opening Config File\n")
-		return
-	}
-	err = json.Unmarshal(confData, &userConfig)
-	if err != nil {
-		fmt.Print("Error Opening Config File\n")
-		return
+		log.Fatalf("Failed to load configuration : %v\n", err)
 	}
 
-	for i := 0; i < userConfig.NumberOfNodes; i++ {
-		ipOrDom := userConfig.InventoryStruct.NodeIpOrDomain[i]
-		user := userConfig.InventoryStruct.UserName[i]
-		pass := userConfig.InventoryStruct.PassWord[i]
+	user := userConfig.InventoryStruct.UserName[0]
+	password := userConfig.InventoryStruct.PassWord[0]
+	aadr := userConfig.InventoryStruct.NodeIpOrDomain[0]
+	projectPath := userConfig.InventoryStruct.ProjectPath
+	config := &ssh.ClientConfig{
+		User: user,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         5 * time.Second,
+	}
 
-		sshConfig := &ssh.ClientConfig{
-			User: user,
-			Auth: []ssh.AuthMethod{
-				ssh.Password(pass),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		}
-		conn, err := ssh.Dial("tcp", ipOrDom, sshConfig)
-		if err != nil {
-			fmt.Print("Err: ", err)
-			return
-		}
-		defer conn.Close()
+	conn, err := ssh.Dial("tcp", aadr, config)
+	if err != nil {
+		log.Fatal("Failed to connect ssh")
+		return
+	}
+	defer conn.Close()
 
-		sftpClient, err := sftp.NewClient(conn)
+	client, err := sftp.NewClient(conn)
+	if err != nil {
+		log.Fatal("Failed to create a new session")
+		return
+	}
+	defer client.Close()
+
+	data, _ := os.ReadFile(".gitx/ignore")
+	lines := strings.Split(string(data), "\n")
+
+	for _, iteralData := range lines {
+		ignoreFile = append(ignoreFile, string(iteralData))
+
+	}
+
+	// fmt.Println(ignoreFile)
+	projectRoot := "/home/iamgrudge/Configs/PE/portfolio/gitx"
+	filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			fmt.Print("Err: ", err)
-			return
+			return err
 		}
-		defer sftpClient.Close()
-		file := "/tmp/test-go.txt"
-		localFile, err := os.Open(file)
+		for _, iteralData := range ignoreFile {
+			if info.Name() == iteralData {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+		}
+		relPath, _ := filepath.Rel(projectRoot, path)
+		remotePath := filepath.Join(projectPath, relPath)
+
+		if info.IsDir() {
+			return client.MkdirAll(remotePath)
+		}
+
+		localFile, err := os.Open(path)
 		if err != nil {
-			fmt.Print("Err: ", err)
-			return
+			log.Fatal("Failed to open ", info.Name())
+			return nil
 		}
 		defer localFile.Close()
 
-		remoteFile, err := sftpClient.Create(file)
+		remoteFile, err := client.Create(remotePath)
 		if err != nil {
-			fmt.Print("Err: ", err)
-			return
-		}
-
-		bytes, err := io.Copy(remoteFile, localFile)
-		if err != nil {
-			fmt.Print("Err: ", err)
-			return
+			log.Fatal("Failed to create ", path)
+			return nil
 		}
 		defer remoteFile.Close()
-		fmt.Printf("%d bytes copied successfully!\n", bytes)
-	}
+
+		bytesCopied, err := io.Copy(remoteFile, localFile)
+		if err != nil {
+			log.Fatal("Failed to copy data ", info.Name())
+			return nil
+		}
+		fmt.Printf("Successfully transferred %d bytes to remote server.\n", bytesCopied)
+		return nil
+	})
 
 }
