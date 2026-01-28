@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"gitx/initx"
-	push "gitx/pushx"
+	"gitx/pushx"
 	"os"
 )
 
@@ -26,7 +26,16 @@ func main() {
 	case "init":
 		initx.InitializeConfig()
 	case "push":
-		push.PushFilesToRemote()
+		pushx.PushFilesToRemote()
+
+	case "run":
+		if len(os.Args) > 3 {
+			fmt.Println("No Remote Commands Specified..")
+			return
+		}
+		// var config runx.config
+		// remoteCommand := strings.Join(os.Args[2:], "")
+		// runx.RunCommand(remoteCommand)
 
 	default:
 		fmt.Print("Coming Soon")

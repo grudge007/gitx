@@ -19,7 +19,7 @@ type Inventory struct {
 	UserName       []string
 	PassWord       []string
 	NodeIpOrDomain []string
-	ProjectPath    string
+	ProjectPath    []string
 }
 
 var ConfigFile = ".gitx/gitx.conf"
@@ -27,7 +27,7 @@ var ConfigFile = ".gitx/gitx.conf"
 func InitializeConfig() {
 	var ConfigDir = ".gitx"
 	var numberOfNodes string
-	var projectPath string
+	var projectPath []string
 	var domainOrip []string
 	var userConfig Config
 	var isOverride string
@@ -66,6 +66,7 @@ func InitializeConfig() {
 		var ipOrDom string
 		var pass string
 		var user string
+		var projectRoot string
 		fmt.Printf("domain name or ip address of node %d: ", i)
 		fmt.Scan(&ipOrDom)
 		fmt.Printf("Username of %d: ", i)
@@ -76,22 +77,25 @@ func InitializeConfig() {
 			fmt.Printf("%v characters?? looks abnormal!!\n", len(domainOrip))
 			return
 		}
+		fmt.Printf("Project Directory From '~' (eg: ~/my/path): ")
+		fmt.Scan(&projectRoot)
+
 		domainOrip = append(domainOrip, fmt.Sprintf("%v:22", ipOrDom))
 		userName = append(userName, user)
 		password = append(password, pass)
+		projectRoot = strings.ReplaceAll(projectRoot, "~", "")
+		if user == "root" {
+			projectRoot = filepath.Join("/root/", projectRoot)
+		} else {
+			projectRoot = filepath.Join("/home/"+user+"/", projectRoot)
+		}
 
+		projectPath = append(projectPath, projectRoot)
 	}
 
 	fmt.Printf("Project Directory From '~' (eg: ~/my/path): ")
 	fmt.Scan(&projectPath)
-	projectPath = strings.ReplaceAll(projectPath, "~", "")
-	projectPath = setProjectPath(projectPath)
 
-	_, err = os.Stat(projectPath)
-	if err != nil {
-		fmt.Printf("%v path does not exists quitting..\n", projectPath)
-		return
-	}
 	inventoryConfig := Inventory{
 		UserName:       userName,
 		PassWord:       password,
