@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"gitx/initx"
 	"gitx/pushx"
+	"gitx/runx"
 	"os"
+	"strings"
 )
 
 func main() {
 	var action string
+	// var command []string
 
 	if len(os.Args) > 1 {
 		action = os.Args[1]
@@ -29,13 +32,12 @@ func main() {
 		pushx.PushFilesToRemote()
 
 	case "run":
-		if len(os.Args) > 3 {
+		if len(os.Args) < 3 {
 			fmt.Println("No Remote Commands Specified..")
 			return
 		}
-		// var config runx.config
-		// remoteCommand := strings.Join(os.Args[2:], "")
-		// runx.RunCommand(remoteCommand)
+		remoteCommand := strings.Join(os.Args[2:], " ")
+		runx.RunCommand(remoteCommand)
 
 	default:
 		fmt.Print("Coming Soon")
