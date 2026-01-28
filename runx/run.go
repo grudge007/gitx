@@ -13,8 +13,11 @@ import (
 
 func RunCommand(remoteCommand string) {
 	var userConfig initx.Config
-	configFile, _ := os.ReadFile(".gitx/gitx.conf")
-	err := json.Unmarshal(configFile, &userConfig)
+	configFile, err := os.ReadFile(".gitx/gitx.conf")
+	if err != nil {
+		log.Fatal("Error Loading Configuration")
+	}
+	err = json.Unmarshal(configFile, &userConfig)
 	if err != nil {
 		log.Fatal("Error Loading Configuration")
 	}
@@ -35,7 +38,7 @@ func RunCommand(remoteCommand string) {
 
 		conn, err := ssh.Dial("tcp", addr, config)
 		if err != nil {
-			fmt.Errorf(err.Error())
+			fmt.Println(err.Error())
 			return
 		}
 
@@ -43,13 +46,13 @@ func RunCommand(remoteCommand string) {
 
 		session, err := conn.NewSession()
 		if err != nil {
-			fmt.Errorf(err.Error())
+			fmt.Println(err.Error())
 			return
 		}
 		defer session.Close()
 		output, err := session.CombinedOutput(remoteCommand)
 		if err != nil {
-			fmt.Errorf(err.Error())
+			fmt.Println(err.Error())
 		}
 		fmt.Print(string(output))
 	}
