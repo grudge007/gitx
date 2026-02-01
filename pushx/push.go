@@ -18,6 +18,10 @@ import (
 func PushFilesToRemote() {
 
 	// unmarshall data
+	if _, err := os.Stat(".gitx/gitx.conf"); os.IsNotExist(err) {
+		fmt.Println("Error: Not a gitx repository (or no config found).")
+		return
+	}
 	var userConfig initx.Config
 	var ignoreFile []string
 	configFile, _ := os.ReadFile(".gitx/gitx.conf")
@@ -64,7 +68,10 @@ func PushFilesToRemote() {
 		}
 
 		// fmt.Println(ignoreFile)
-		projectRoot := "/home/iamgrudge/Configs/PE/portfolio/gitx"
+		projectRoot, err := os.Getwd()
+		if err != nil {
+			return err
+		}
 		filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
