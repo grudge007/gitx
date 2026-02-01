@@ -70,7 +70,7 @@ func PushFilesToRemote() {
 		// fmt.Println(ignoreFile)
 		projectRoot, err := os.Getwd()
 		if err != nil {
-			return err
+			return
 		}
 		filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
