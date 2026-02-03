@@ -39,7 +39,7 @@ func RunCommand(remoteCommand string) {
 		conn, err := ssh.Dial("tcp", addr, config)
 		if err != nil {
 			fmt.Println(err.Error())
-			return
+			// return
 		}
 
 		defer conn.Close()
@@ -47,7 +47,7 @@ func RunCommand(remoteCommand string) {
 		session, err := conn.NewSession()
 		if err != nil {
 			fmt.Println(err.Error())
-			return
+			// return
 		}
 		defer session.Close()
 		output, err := session.CombinedOutput(remoteCommand)
