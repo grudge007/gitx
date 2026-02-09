@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"gitx/initx"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +26,7 @@ func PushFilesToRemote() {
 	configFile, _ := os.ReadFile(".gitx/gitx.conf")
 	err := json.Unmarshal(configFile, &userConfig)
 	if err != nil {
-		log.Fatalf("Failed to load configuration : %v\n", err)
+		fmt.Printf("Failed to load configuration : %v\n", err)
 	}
 	count := userConfig.NumberOfNodes
 	for i := 0; i < count; i++ {
@@ -47,17 +46,17 @@ func PushFilesToRemote() {
 
 		conn, err := ssh.Dial("tcp", aadr, config)
 		if err != nil {
-			log.Fatal("Failed to connect ssh")
-			return
+			fmt.Println("Failed to connect ssh")
+			continue
 		}
-		defer conn.Close()
+		// defer conn.Close()
 
 		client, err := sftp.NewClient(conn)
 		if err != nil {
-			log.Fatal("Failed to create a new session")
-			return
+			fmt.Println("Failed to create a new session")
+			continue
 		}
-		defer client.Close()
+		// defer client.Close()
 
 		data, _ := os.ReadFile(".gitx/ignore")
 		lines := strings.Split(string(data), "\n")
@@ -70,7 +69,7 @@ func PushFilesToRemote() {
 		// fmt.Println(ignoreFile)
 		projectRoot, err := os.Getwd()
 		if err != nil {
-			return
+			continue
 		}
 		filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -94,25 +93,27 @@ func PushFilesToRemote() {
 
 			localFile, err := os.Open(path)
 			if err != nil {
-				log.Fatal("Failed to open ", info.Name())
+				fmt.Println("Failed to open ", info.Name())
 				return nil
 			}
 			defer localFile.Close()
 
 			remoteFile, err := client.Create(remotePath)
 			if err != nil {
-				log.Fatal("Failed to create ", path)
+				fmt.Println("Failed to create ", path)
 				return nil
 			}
 			defer remoteFile.Close()
 
 			bytesCopied, err := io.Copy(remoteFile, localFile)
 			if err != nil {
-				log.Fatal("Failed to copy data ", info.Name())
+				fmt.Println("Failed to copy data ", info.Name())
 				return nil
 			}
 			fmt.Printf("Successfully transferred %d bytes to remote server.\n", bytesCopied)
 			return nil
 		})
+		client.Close()
+		conn.Close()
 	}
 }
