@@ -105,7 +105,7 @@ func PushFilesToRemote() {
 			}
 			defer remoteFile.Close()
 
-			bytesCopied, err := io.Copy(remoteFile, localFile)
+			bytesCopied, err :=  io.Copy(remoteFile, localFile)
 			if err != nil {
 				fmt.Println("Failed to copy data ", info.Name())
 				return nil
