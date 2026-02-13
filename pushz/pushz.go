@@ -1,76 +1,78 @@
 package pushz
 
 import (
+	"bufio"
 	"fmt"
 	"gitx/initz"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
-	"gopkg.in/yaml.v2"
 )
 
-var gitzConfig initz.Inventory
+type PushManager struct {
+	Config      initz.Inventory
+	FilesToPush []string
+	Auth        ssh.Signer
+}
 
-func PushFilesToRemote() {
+func PushFilesToRemote(loadedConfig *initz.Inventory) {
 	var wg sync.WaitGroup
-	gitzConfigFile := "/home/iamgrudge/Configs/PE/portfolio/gitx/.gitz/gitz.yaml"
-	nodeDetails := loadGitzConf(gitzConfigFile)
-	ignorFiles := loadGitzIgnore()
-	filesToSend := getFilesList(ignorFiles)
-	pvtKey := getSshPubKey(nodeDetails.PrivateKeyPath)
 
-	for i := 0; i < len(nodeDetails.Nodes); i++ {
-		connection := getSshConnection(pvtKey, nodeDetails.Nodes[i].User, nodeDetails.Nodes[i].IP)
-
+	myPushManager := NewPushManager(*loadedConfig)
+	for i := 0; i < len(myPushManager.Config.Nodes); i++ {
 		wg.Add(1)
-		go func(node initz.Node) {
+		go func(index int) {
 			defer wg.Done()
-			defer connection.Close()
-			PushFiles(nodeDetails.ProjectRoot, connection, filesToSend, node.Path)
-		}(nodeDetails.Nodes[i])
+			myPushManager.pushFiles(index)
+		}(i)
 
 	}
 	wg.Wait()
 
 }
 
-func loadGitzConf(gitzConfigFile string) initz.Inventory {
-	data, err := os.ReadFile(gitzConfigFile)
-	if err != nil {
-		log.Fatal(err)
+func NewPushManager(inventory initz.Inventory) *PushManager {
+	pushManager := &PushManager{
+		Config: inventory,
 	}
-	err = yaml.Unmarshal(data, &gitzConfig)
-	return gitzConfig
+	pushManager.FilesToPush = pushManager.getLocalFiles()
+	pushManager.Auth = pushManager.getSshSigner()
+	return pushManager
+
 }
 
-func loadGitzIgnore() []string {
-	var ignores []string
-	gitzIgnore := "/home/iamgrudge/Configs/PE/portfolio/gitx/.gitz/ignores"
-	data, _ := os.ReadFile(gitzIgnore)
-	lines := strings.Split(string(data), "\n")
-	for _, file := range lines {
-		ignores = append(ignores, string(file))
+// get ignore files
+
+func (inventory *PushManager) getIgnoreFiles() []string {
+	var ignoreFiles []string
+	file := filepath.Join(inventory.Config.ProjectRoot, ".gitz", "gitzignore")
+	fmt.Println(file)
+	data, _ := os.Open(file)
+	scanner := bufio.NewScanner(data)
+	for scanner.Scan() {
+		line := scanner.Text()
+		ignoreFiles = append(ignoreFiles, line)
 	}
-	return ignores
+	data.Close()
+	return ignoreFiles
+
 }
 
-func getFilesList(ignoreFiles []string) []string {
-	var filesToSend []string
-	root, _ := os.Getwd()
-	err := filepath.WalkDir(root, func(path string, info fs.DirEntry, err error) error {
+func (inventory *PushManager) getLocalFiles() []string {
+	ignoreFiles := inventory.getIgnoreFiles()
+	var filesToBeSent []string
+	err := filepath.WalkDir(inventory.Config.ProjectRoot, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		for _, file := range ignoreFiles {
-			if file == info.Name() {
+		for _, fileName := range ignoreFiles {
+			if info.Name() == fileName {
 				if info.IsDir() {
 					return filepath.SkipDir
 				}
@@ -80,18 +82,19 @@ func getFilesList(ignoreFiles []string) []string {
 		if info.IsDir() {
 			return nil
 		}
-		filesToSend = append(filesToSend, path)
+
+		filesToBeSent = append(filesToBeSent, path)
 		return nil
 
 	})
 	if err != nil {
 		fmt.Println(err)
 	}
-	return filesToSend
+	return filesToBeSent
 }
 
-func getSshPubKey(pvtKeyPath string) ssh.Signer {
-	pvtKey, err := os.ReadFile(pvtKeyPath)
+func (inventory *PushManager) getSshSigner() ssh.Signer {
+	pvtKey, err := os.ReadFile(inventory.Config.PrivateKeyPath)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -102,65 +105,77 @@ func getSshPubKey(pvtKeyPath string) ssh.Signer {
 	return signer
 }
 
-func getSshConnection(pvtKey ssh.Signer, user string, node string) *ssh.Client {
+func (inventory *PushManager) getSshConnection(index int) *ssh.Client {
+	pvtKey := inventory.Auth
+
 	config := &ssh.ClientConfig{
-		User: user,
+		User: inventory.Config.Nodes[index].User,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(pvtKey),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         5 * time.Second,
 	}
-
-	conn, err := ssh.Dial("tcp", node+":22", config)
+	conn, err := ssh.Dial("tcp", inventory.Config.Nodes[index].IP+":22", config)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return nil
 	}
 	return conn
 }
 
-func PushFiles(projectRoot string, conn *ssh.Client, files []string, projectPath string) {
+func (inventory *PushManager) pushFiles(index int) {
 	createdDirs := make(map[string]bool)
-	client, err := sftp.NewClient(conn)
+	filesToBeSent := inventory.FilesToPush
+	connection := inventory.getSshConnection(index)
+	if connection == nil {
+		return
+	}
+	defer connection.Close()
+
+	client, err := sftp.NewClient(connection)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("this line caused %v\n", err)
 	}
 	defer client.Close()
-	for _, path := range files {
-		relPath, _ := filepath.Rel(projectRoot, path)
-		remotePath := filepath.Join(projectPath, relPath)
+
+	for _, file := range filesToBeSent {
+		relPath, _ := filepath.Rel(inventory.Config.ProjectRoot, file)
+		remotePath := filepath.Join(inventory.Config.Nodes[index].Path, relPath)
 		remoteDir := filepath.Dir(remotePath)
 		if !createdDirs[remoteDir] {
-			fmt.Printf("create dir %v\n", remoteDir)
 			err := client.MkdirAll(remoteDir)
 			if err != nil {
-				fmt.Printf("Warning: could not create dir %v: %v\n", remoteDir, err)
+				fmt.Println(err)
 			}
-			createdDirs[remoteDir] = true
 
+			createdDirs[remoteDir] = true
 		}
-		localFile, err := os.Open(path)
+		localFile, err := os.Open(file)
 		if err != nil {
-			fmt.Errorf("failed to read %v, skipping\n", path)
+			fmt.Println(err)
 			continue
 		}
 
 		remoteFile, err := client.Create(remotePath)
 		if err != nil {
-			fmt.Errorf("failed to create %v, skipping\n", remotePath)
+			fmt.Println(err)
+			localFile.Close()
 			continue
 		}
 
-		bytesCopied, err := io.Copy(remoteFile, localFile)
+		_, err = io.Copy(remoteFile, localFile)
 		if err != nil {
-			fmt.Errorf("Failed to copy %v, skipping\n", path)
-		} else {
-			fmt.Printf("Successfully Copied %d bytes: %s\n", bytesCopied, relPath)
-
+			fmt.Println(err)
+			localFile.Close()
+			remoteFile.Close()
+			continue
 		}
+		fmt.Printf("Succesfully Copied %v to %v\n", localFile.Name(), remoteFile.Name())
+
 		localFile.Close()
 		remoteFile.Close()
+
 	}
 
 }

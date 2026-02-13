@@ -3,3 +3,7 @@ gitx
 # Added by goreleaser init:
 dist/
 .goreleaser.yaml
+/.gitz
+.gitz/
+pushy
+initz.go.old

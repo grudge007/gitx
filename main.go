@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"gitx/initz"
 	"gitx/pushz"
+
+	// "gitx/pushz"
 	"gitx/runx"
 	"os"
 	"strings"
@@ -27,16 +29,16 @@ func main() {
 	}
 	switch action {
 	case "init":
-		// initx.InitializeConfig()
-		if len(os.Args) >= 3 {
-			initz.InitGitz(os.Args[2])
-		} else {
-			initz.InitGitz("default")
+		force := false
+		if len(os.Args) > 2 && (os.Args[2] == "--force" || os.Args[2] == "-f") {
+			force = true
 		}
+		initz.InitGitz(force)
 
 	case "push":
 		// pushx.PushFileToRemote()
-		pushz.PushFilesToRemote()
+		loadedConfig := initz.NewInventory().LoadGitzConf()
+		pushz.PushFilesToRemote(loadedConfig)
 
 	case "run":
 		if len(os.Args) < 3 {

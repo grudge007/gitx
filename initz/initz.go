@@ -2,7 +2,6 @@ package initz
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -24,15 +23,21 @@ type Inventory struct {
 	Nodes          []Node `yaml:"nodes"`
 }
 
-func InitGitz(override string) {
-	gitzConfFile, workingDir := workingDirAndConfigFile()
-	fmt.Println(gitzConfFile)
-	isExist := checkIsGitzExist(gitzConfFile, override)
-	if isExist {
-		return
+// create constructor
+
+func InitGitz(force bool) {
+	project := NewInventory()
+	if project.checkIsGitzExist(force) {
+		project.convertToYaml()
+	} else {
+		os.Exit(1)
 	}
 
-	inventoryFile := Inventory{
+}
+
+func NewInventory() *Inventory {
+	workingDir, _ := os.Getwd()
+	return &Inventory{
 		ProjectName:    "MyProject",
 		ProjectRoot:    workingDir,
 		DefaultUser:    "root",
@@ -40,68 +45,72 @@ func InitGitz(override string) {
 		PrivateKeyPath: getSshPvtKeyPath(),
 		Nodes: []Node{
 			{
-				IP:   "192.168.100.10",
+				IP:   "192.168.192.15",
 				User: "root",
 				Path: "/root/mypath",
 			},
 			{
-				IP:   "192.168.100.11",
-				User: "user",
+				IP:   "192.168.192.30",
+				User: "root",
 				Path: "/opt/mypath",
 			},
 		},
 	}
-	inventoryYaml := convertToYaml(inventoryFile)
-	saveToGitzConf(inventoryYaml, gitzConfFile)
 
 }
 
-func workingDirAndConfigFile() (string, string) {
-	workingDir, err := os.Getwd()
+// yaml convertion helper
+func (inventory *Inventory) convertToYaml() {
+
+	dotGitz := inventory.getDotGitz()
+
+	gitzConfigData, err := yaml.Marshal(&inventory)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	err = os.Mkdir(".gitz", 0766)
-	gitzconfigFile := filepath.Join(workingDir, ".gitz/gitz.yaml")
-	return gitzconfigFile, workingDir
+	// return gitzConfigFile
+	err = os.WriteFile(dotGitz, gitzConfigData, 0644)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
-func checkIsGitzExist(gitzConfFile string, override string) bool {
-	if override == "--force" || override == "-f" {
-		return false
-	}
-	_, err := os.Stat(gitzConfFile)
+// dotGitz creation helper
+func (inventory *Inventory) getDotGitz() string {
+	dotGitz := filepath.Join(inventory.ProjectRoot, ".gitz")
+	err := os.MkdirAll(dotGitz, 0766)
 	if err != nil {
-		return false
-	} else {
-		fmt.Println("An Existing COnfiguration Found")
-		fmt.Println("run with --force to override")
-		return true
+		return ""
 	}
+	return filepath.Join(dotGitz, "gitz.yaml")
 
-}
-
-func convertToYaml(inventoryFile Inventory) []byte {
-	inventoryYaml, err := yaml.Marshal(&inventoryFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return inventoryYaml
-}
-
-func saveToGitzConf(inventoryYaml []byte, gitzConfFile string) {
-	err := os.WriteFile(gitzConfFile, inventoryYaml, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(string(inventoryYaml))
 }
 
 func getSshPvtKeyPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "YOUR_SSH_IDRSA_FILE"
+	homedir, _ := os.UserHomeDir()
+	return filepath.Join(homedir, ".ssh/id_rsa")
+
+}
+
+func (inventory *Inventory) checkIsGitzExist(force bool) bool {
+	_, err := os.Stat(inventory.getDotGitz())
+	if err != nil || force {
+		return true
+	} else {
+		fmt.Println("An existing configuration found")
+		fmt.Println("use --force to override")
+		os.Exit(1)
+		return false
 	}
-	privateKeyPath := filepath.Join(homeDir, ".ssh/id_rsa")
-	return privateKeyPath
+}
+
+func (inventory *Inventory) LoadGitzConf() *Inventory {
+	inventoryFile, err := os.ReadFile(inventory.getDotGitz())
+	if err != nil {
+		fmt.Println("Failed To Load Config")
+		os.Exit(1)
+	}
+	err = yaml.Unmarshal(inventoryFile, inventory)
+	return inventory
 }
