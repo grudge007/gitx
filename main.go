@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"gitx/initx"
-	"gitx/pushx"
+	"gitx/initz"
+	"gitx/pushz"
 	"gitx/runx"
 	"os"
 	"strings"
@@ -21,15 +21,22 @@ func main() {
 		return
 	}
 
-	if action == "init" && len(os.Args) > 2 {
-		fmt.Printf("%v takes zero flags", action)
+	if action == "init" && len(os.Args) > 3 {
+		// fmt.Printf("%v takes  flags", action)
 		return
 	}
 	switch action {
 	case "init":
-		initx.InitializeConfig()
+		// initx.InitializeConfig()
+		if len(os.Args) >= 3 {
+			initz.InitGitz(os.Args[2])
+		} else {
+			initz.InitGitz("default")
+		}
+
 	case "push":
-		pushx.PushFilesToRemote()
+		// pushx.PushFileToRemote()
+		pushz.PushFilesToRemote()
 
 	case "run":
 		if len(os.Args) < 3 {

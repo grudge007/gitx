@@ -1,4 +1,4 @@
-package main
+package initz
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ghodss/yaml"
+	"gopkg.in/yaml.v2"
 )
 
 type Node struct {
@@ -16,29 +16,38 @@ type Node struct {
 }
 
 type Inventory struct {
-	ProjectName string `yaml:"project_name"`
-	DefaultUser string `yaml:"default_user"`
-	DefaultPath string `yaml:"default_path"`
-	Nodes       []Node
+	ProjectName    string `yaml:"project_name"`
+	ProjectRoot    string `yaml:"project_root"`
+	DefaultUser    string `yaml:"default_user"`
+	DefaultPath    string `yaml:"default_path"`
+	PrivateKeyPath string `yaml:"private_key_path"`
+	Nodes          []Node `yaml:"nodes"`
 }
 
-func main() {
-	gitzConfFile := workingDirAndConfigFile()
+func InitGitz(override string) {
+	gitzConfFile, workingDir := workingDirAndConfigFile()
 	fmt.Println(gitzConfFile)
-	isExist := checkIsGitzExist(gitzConfFile)
-	if !isExist {
+	isExist := checkIsGitzExist(gitzConfFile, override)
+	if isExist {
 		return
 	}
 
 	inventoryFile := Inventory{
-		ProjectName: "MyProject",
-		DefaultUser: "root",
-		DefaultPath: "/opt/MyProject",
+		ProjectName:    "MyProject",
+		ProjectRoot:    workingDir,
+		DefaultUser:    "root",
+		DefaultPath:    "/opt/MyProject",
+		PrivateKeyPath: getSshPvtKeyPath(),
 		Nodes: []Node{
 			{
 				IP:   "192.168.100.10",
 				User: "root",
 				Path: "/root/mypath",
+			},
+			{
+				IP:   "192.168.100.11",
+				User: "user",
+				Path: "/opt/mypath",
 			},
 		},
 	}
@@ -47,33 +56,29 @@ func main() {
 
 }
 
-func workingDirAndConfigFile() string {
+func workingDirAndConfigFile() (string, string) {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
 	err = os.Mkdir(".gitz", 0766)
 	gitzconfigFile := filepath.Join(workingDir, ".gitz/gitz.yaml")
-	return gitzconfigFile
+	return gitzconfigFile, workingDir
 }
 
-func checkIsGitzExist(gitzConfFile string) bool {
-	_, err := os.Stat(gitzConfFile)
-	if err == nil {
-		if len(os.Args) >= 2 {
-			if os.Args[1] == "-f" {
-			} else {
-				fmt.Println("an existing configuration found")
-				fmt.Println("run with -f to override")
-				return false
-			}
-		} else {
-			fmt.Println("an existing configuration found")
-			fmt.Println("run with -f to override")
-			return false
-		}
+func checkIsGitzExist(gitzConfFile string, override string) bool {
+	if override == "--force" || override == "-f" {
+		return false
 	}
-	return true
+	_, err := os.Stat(gitzConfFile)
+	if err != nil {
+		return false
+	} else {
+		fmt.Println("An Existing COnfiguration Found")
+		fmt.Println("run with --force to override")
+		return true
+	}
+
 }
 
 func convertToYaml(inventoryFile Inventory) []byte {
@@ -90,4 +95,13 @@ func saveToGitzConf(inventoryYaml []byte, gitzConfFile string) {
 		log.Fatal(err)
 	}
 	fmt.Println(string(inventoryYaml))
+}
+
+func getSshPvtKeyPath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "YOUR_SSH_IDRSA_FILE"
+	}
+	privateKeyPath := filepath.Join(homeDir, ".ssh/id_rsa")
+	return privateKeyPath
 }

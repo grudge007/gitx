@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func PushFilesToRemote() {
+func PushFileToRemote() {
 
 	// unmarshall data
 	if _, err := os.Stat(".gitx/gitx.conf"); os.IsNotExist(err) {
@@ -105,7 +105,7 @@ func PushFilesToRemote() {
 			}
 			defer remoteFile.Close()
 
-			bytesCopied, err :=  io.Copy(remoteFile, localFile)
+			bytesCopied, err := io.Copy(remoteFile, localFile)
 			if err != nil {
 				fmt.Println("Failed to copy data ", info.Name())
 				return nil
