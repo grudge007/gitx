@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"gitx/initz"
 	"gitx/pushz"
+	"gitx/runz"
 
 	// "gitx/pushz"
-	"gitx/runx"
+
 	"os"
 	"strings"
 )
@@ -46,7 +47,8 @@ func main() {
 			return
 		}
 		remoteCommand := strings.Join(os.Args[2:], " ")
-		runx.RunCommand(remoteCommand)
+		loadedConfig := initz.NewInventory().LoadGitzConf()
+		runz.RunCommand(loadedConfig, remoteCommand)
 
 	default:
 		fmt.Print("Coming Soon")
