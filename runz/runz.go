@@ -2,7 +2,7 @@ package runz
 
 import (
 	"fmt"
-	"gitx/initz"
+	"gitz/initz"
 	"os"
 	"sync"
 	"time"

@@ -3,7 +3,7 @@ package pushz
 import (
 	"bufio"
 	"fmt"
-	"gitx/initz"
+	"gitz/initz"
 	"io"
 	"io/fs"
 	"os"
