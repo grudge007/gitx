@@ -1,91 +1,71 @@
-# gitz
+# Gitz
 
-**gitz** is a lightweight local deployment helper written in Go.
+**Gitz** is a high-performance, concurrent deployment and remote execution orchestrator. Designed for engineers managing proprietary cloud infrastructures, Gitz provides a streamlined way to synchronize code and execute commands across multiple nodes simultaneously using SSH and SFTP.
 
-It is designed to help engineers manage multi-node project deployments by storing node details, project paths, and execution preferences in a simple local configuration file. Unlike Git, gitz is not about version control. It is about **moving files and executing commands across servers in a controlled, repeatable way**.
+## Installation
 
-### 🚀 Key Features
+Gitz is distributed via a custom Debian repository. You can install it on any compatible system using the following commands:
 
-* **Initialization:** Quickly bootstrap a project with a `.gitz/gitz.conf` file.
-* **File Deployment (Push):** Securely transfer files to multiple remote nodes via SFTP.
-* **Remote Execution (Run):** Execute shell commands across your entire inventory in parallel via SSH.
-
-### 🛠 How to Build from Source
-
-Since **gitz** is written in Go, you can compile it into a single binary for your system.
-
-1. **Clone the repository:**
 ```bash
-git clone https://github.com/yourusername/gitz.git
-cd gitz
+# Add the GPG key
+curl -fsSL http://me.iamgrudge.online/gitz-repo.gpg \
+| sudo gpg --dearmor -o /usr/share/keyrings/gitz.gpg
+
+# Add the repository to your sources
+echo "deb [signed-by=/usr/share/keyrings/gitz.gpg] http://me.iamgrudge.online stable main" \
+| sudo tee /etc/apt/sources.list.d/gitz.list
+
+# Update and install
+sudo apt update && sudo apt install gitz
 
 ```
 
+## Core Features
 
-2. **Download dependencies:**
-```bash
-go mod tidy
+* **Concurrency by Default:** Leverages Go goroutines to handle multiple node connections in parallel.
+* **Remote Execution:** A built-in engine (`runz`) for executing shell commands across the cluster.
+* **Infrastructure as Code:** Simple YAML-based configuration for managing node inventories.
+* **Flexible Filtering:** Uses `.gitzignore` patterns to exclude files from synchronization.
+* **Secure:** Built-in support for SSH private key authentication.
 
-```
+## Usage
 
+### 1. Initialize
 
-3. **Build the binary:**
-```bash
-go build -o gitz main.go
+Set up a new project configuration:
 
-```
-
-
-4. *(Optional)* **Move to your path:**
-```bash
-sudo mv gitz /usr/local/bin/
-
-```
-
-
-
-### 📖 Quick Start Guide
-
-1. **Initialize your project:**
 ```bash
 gitz init
 
 ```
 
+### 2. Configure
 
-2. **Configure your nodes:**
-Open `.gitz/gitz.conf` and add your server IPs, usernames, and passwords.
-3. **Deploy a file:**
-Place a file in your directory and run:
+Edit `.gitz/gitz.yaml` to define your target environment:
+
+```yaml
+project_name: MyCloudApp
+nodes:
+  - ip: 192.168.1.10
+    user: root
+    path: /var/www/app
+
+```
+
+### 3. Deploy and Execute
+
+Sync your files and run remote commands:
+
 ```bash
 gitz push
+gitz run "ls -la"
 
 ```
 
+## Contributing
 
-4. **Run a command:**
-```bash
-gitz run "uptime"
+The project is hosted at [github.com/grudge007/gitz](https://www.google.com/search?q=https://github.com/grudge007/gitz). Contributions, bug reports, and feature requests are welcome.
 
-```
+## License
 
-
-
-### What gitz aims to solve
-
-* Bootstrapping multi-node deployments with minimal setup.
-* Keeping deployment configuration local and human-readable.
-* Running commands remotely in a structured way.
-* Avoiding complex orchestration frameworks when they are unnecessary.
-
-### What gitz is not
-
-* It is **not** a configuration management system (like Ansible).
-* It is **not** a replacement for Terraform or Kubernetes.
-* It is **not** a version control system.
-
-### Philosophy
-
-> Wrap the system. Don’t hide it.
-
-The tool prioritizes clarity over abstraction, structure over magic, and reliability over convenience. If something fails, gitz shows exactly what failed and why.
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See the `LICENSE` file for full details.
