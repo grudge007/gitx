@@ -6,28 +6,32 @@ import (
 	"gitx/pushz"
 	"gitx/runz"
 
-	// "gitx/pushz"
-
 	"os"
 	"strings"
 )
 
+const Version = "0.1.1"
+
 func main() {
 	var action string
-	// var command []string
 
 	if len(os.Args) > 1 {
 		action = os.Args[1]
-
 	} else {
-		fmt.Printf("run 'gitx init' to init\nrun 'gitx push' to push code\nrun gitx run <command1> <command2> to execute remote commands in project root")
+		fmt.Println("Usage:")
+		fmt.Println("  gitx init [--force|-f]")
+		fmt.Println("  gitx push")
+		fmt.Println("  gitx run <command>")
+		fmt.Println("  gitx --version")
 		return
 	}
 
 	if action == "init" && len(os.Args) > 3 {
-		// fmt.Printf("%v takes  flags", action)
+		fmt.Println("Error: too many arguments for 'gitx init'.")
+		fmt.Println("Usage: gitx init [--force|-f]")
 		return
 	}
+
 	switch action {
 	case "init":
 		force := false
@@ -37,22 +41,29 @@ func main() {
 		initz.InitGitz(force)
 
 	case "push":
-		// pushx.PushFileToRemote()
 		loadedConfig := initz.NewInventory().LoadGitzConf()
 		pushz.PushFilesToRemote(loadedConfig)
 
 	case "run":
 		if len(os.Args) < 3 {
-			fmt.Println("No Remote Commands Specified..")
+			fmt.Println("Error: no remote command specified.")
+			fmt.Println("Usage: gitx run <command>")
 			return
 		}
 		remoteCommand := strings.Join(os.Args[2:], " ")
 		loadedConfig := initz.NewInventory().LoadGitzConf()
 		runz.RunCommand(loadedConfig, remoteCommand)
 
+	case "-v", "--version":
+		fmt.Printf("gitx version %s\n", Version)
+		return
+
 	default:
-		fmt.Print("Coming Soon")
-
+		fmt.Printf("Error: unknown command '%s'.\n", action)
+		fmt.Println("Usage:")
+		fmt.Println("  gitx init [--force|-f]")
+		fmt.Println("  gitx push")
+		fmt.Println("  gitx run <command>")
+		fmt.Println("  gitx --version")
 	}
-
 }
