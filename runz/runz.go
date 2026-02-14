@@ -76,27 +76,24 @@ func (inventory *RunManager) getSshSigner() ssh.Signer {
 }
 
 func (inventory *RunManager) cmdRunner(remoteCommand string, index int) string {
+	nodeIP := inventory.Config.Nodes[index].IP
+
 	connection := inventory.getSshConnection(index)
 	if connection == nil {
-		return fmt.Sprintf("[%s] SSH connection could not be established",
-			inventory.Config.Nodes[index].IP)
+		return fmt.Sprintf("[%s] Connection failed", nodeIP)
 	}
 	defer connection.Close()
 
 	session, err := connection.NewSession()
 	if err != nil {
-		connection.Close()
-		return fmt.Sprintf("[ERROR] Failed to create SSH session on %s: %v",
-			inventory.Config.Nodes[index].IP, err)
+		return fmt.Sprintf("[%s] Session failed: %v", nodeIP, err)
 	}
 	defer session.Close()
 
 	output, err := session.CombinedOutput(remoteCommand)
 	if err != nil {
-		fmt.Printf("[ERROR] Command '%s' failed on %s: %v\n",
-			remoteCommand,
-			inventory.Config.Nodes[index].IP,
-			err)
+		return fmt.Sprintf("[%s] Error: %v\nOutput: %s", nodeIP, err, string(output))
 	}
-	return string(output)
+
+	return fmt.Sprintf("[%s] Success:\n%s", nodeIP, string(output))
 }
